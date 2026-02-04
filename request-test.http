@@ -64,3 +64,58 @@ Authorization: Basic burgasvv@gmail.com burgasvv
 DELETE /api/v1/identities/delete?identityId=d530dcd2-6931-47fa-a895-ce2cee102820
 Host: localhost:9000
 Accept: application/json
+
+
+
+### Car Requests
+
+
+
+###
+GET /api/v1/cars
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+GET /api/v1/cars/by-identity?identityId=c009193f-54bc-4360-924c-893c2856f201
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic zagor@gmail.com zagor
+
+###
+GET /api/v1/cars/by-id?carId=a16206b2-d498-4878-92d5-607495becf91
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+POST /api/v1/cars/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: b6dad7e3-9f50-4362-b888-aa9841e3def0
+Authorization: Basic zagor@gmail.com zagor
+
+{
+    "brand": "Porsche",
+    "model": "911",
+    "description": "Описание и характеристики автомобиля Porsche 911",
+    "identityId": "3150c6af-9286-4378-a8e7-c43937a09327"
+}
+
+###
+PUT /api/v1/cars/update
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: b6dad7e3-9f50-4362-b888-aa9841e3def0
+Authorization: Basic zagor@gmail.com zagor
+
+{
+    "id": "1251a88f-3f0c-492f-b57c-c1402bb9f553",
+    "model": "911-Turbo",
+    "description": "Описание и характеристики автомобиля 911-Turbo"
+}

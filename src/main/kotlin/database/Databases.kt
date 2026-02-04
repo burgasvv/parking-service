@@ -204,7 +204,9 @@ data class CarRequest(
     val id: UUID? = null,
     val brand: String? = null,
     val model: String? = null,
-    val description: String? = null
+    val description: String? = null,
+    @Serializable(with = UUIDSerializer::class)
+    val identityId: UUID? = null
 )
 
 @Serializable

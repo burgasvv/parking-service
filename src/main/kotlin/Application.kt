@@ -5,6 +5,7 @@ import org.burgas.database.configureDatabases
 import org.burgas.routing.configureRouting
 import org.burgas.security.configureAuthentication
 import org.burgas.serialization.configureSerialization
+import org.burgas.service.configureCarRoutes
 import org.burgas.service.configureIdentityRoutes
 
 fun main(args: Array<String>) {
@@ -18,4 +19,5 @@ fun Application.module() {
     configureAuthentication()
 
     configureIdentityRoutes()
+    configureCarRoutes()
 }

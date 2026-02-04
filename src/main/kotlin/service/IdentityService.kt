@@ -182,7 +182,7 @@ fun Application.configureIdentityRoutes() {
                 val identityId = UUID.fromString(call.parameters["identityId"])
 
                 val identityEntity = transaction(db = DatabaseFactory.postgres) {
-                    IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found, not proceeded")
+                    IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found for proceed")
                 }
 
                 if (identityEntity.email == principal.name) {
@@ -202,7 +202,7 @@ fun Application.configureIdentityRoutes() {
                 val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null, not proceeded")
 
                 val identityEntity = transaction(db = DatabaseFactory.postgres) {
-                    IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found, not proceeded")
+                    IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found for proceed")
                 }
 
                 if (identityEntity.email == principal.name) {
