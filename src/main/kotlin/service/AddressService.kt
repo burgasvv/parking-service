@@ -1,8 +1,36 @@
 package org.burgas.service
 
-import org.burgas.database.AddressEntity
-import org.burgas.database.AddressFullResponse
-import org.burgas.database.AddressShortResponse
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.put
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import org.burgas.database.*
+import org.jetbrains.exposed.dao.load
+import org.jetbrains.exposed.sql.transactions.transaction
+import java.sql.Connection
+import java.util.*
+
+fun AddressEntity.insert(addressRequest: AddressRequest) {
+    this.city = addressRequest.city ?: throw IllegalArgumentException("Address city is null")
+    this.street = addressRequest.street ?: throw IllegalArgumentException("Address street is null")
+    this.house = addressRequest.house ?: throw IllegalArgumentException("Address house is null")
+}
+
+fun AddressEntity.update(addressRequest: AddressRequest) {
+    this.city = addressRequest.city ?: this.city
+    this.street = addressRequest.street ?: this.street
+    this.house = addressRequest.house ?: this.house
+}
 
 fun AddressEntity.toAddressShortResponse(): AddressShortResponse {
     return AddressShortResponse(
@@ -21,4 +49,101 @@ fun AddressEntity.toAddressFullResponse(): AddressFullResponse {
         house = this.house,
         parking = this.parking?.toParkingShortResponse()
     )
+}
+
+class AddressService {
+
+    suspend fun create(addressRequest: AddressRequest) = withContext(Dispatchers.Default) {
+        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            AddressEntity.new { this.insert(addressRequest) }
+        }
+    }
+
+    suspend fun findAll(): List<AddressShortResponse> = withContext(Dispatchers.Default) {
+        transaction(db = DatabaseFactory.postgres) {
+            AddressEntity.all().map { it.toAddressShortResponse() }
+        }
+    }
+
+    suspend fun findById(addressId: UUID) = withContext(Dispatchers.Default) {
+        val redis = DatabaseFactory.redis
+        val addressString = redis.get("addressFullResponse::$addressId")
+        if (addressString != null) {
+            Json.decodeFromString<AddressFullResponse>(addressString)
+        } else {
+            transaction(db = DatabaseFactory.postgres) {
+                val addressFullResponse =
+                    (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found"))
+                        .load(AddressEntity::parking)
+                        .toAddressFullResponse()
+                redis.set("addressFullResponse::${addressFullResponse.id}", Json.encodeToString(addressFullResponse))
+                addressFullResponse
+            }
+        }
+    }
+
+    suspend fun update(addressRequest: AddressRequest) = withContext(Dispatchers.Default) {
+        val addressId = addressRequest.id ?: throw IllegalArgumentException("Address id is null")
+        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            AddressEntity.findByIdAndUpdate(addressId) { it.update(addressRequest) }
+            val redis = DatabaseFactory.redis
+            if (redis.exists("addressFullResponse::$addressId")) {
+                redis.del("addressFullResponse::$addressId")
+            }
+        }
+    }
+
+    suspend fun delete(addressId: UUID) = withContext(Dispatchers.Default) {
+        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found")).delete()
+            val redis = DatabaseFactory.redis
+            if (redis.exists("addressFullResponse::$addressId")) {
+                redis.del("addressFullResponse::$addressId")
+            }
+        }
+    }
+}
+
+fun Application.configureAddressRoutes() {
+
+    val addressService = AddressService()
+
+    routing {
+
+        route("/api/v1/addresses") {
+
+            authenticate("basic-auth-all") {
+
+                get {
+                    call.respond(HttpStatusCode.OK, addressService.findAll())
+                }
+
+                get("/by-id") {
+                    val addressId = UUID.fromString(call.parameters["addressId"])
+                    call.respond(HttpStatusCode.OK, addressService.findById(addressId))
+                }
+            }
+
+            authenticate("basic-auth-admin") {
+
+                post("/create") {
+                    val addressRequest = call.receive(AddressRequest::class)
+                    addressService.create(addressRequest)
+                    call.respond(HttpStatusCode.Created)
+                }
+
+                put("/update") {
+                    val addressRequest = call.receive(AddressRequest::class)
+                    addressService.update(addressRequest)
+                    call.respond(HttpStatusCode.OK)
+                }
+
+                delete("/delete") {
+                    val addressId = UUID.fromString(call.parameters["addressId"])
+                    addressService.delete(addressId)
+                    call.respond(HttpStatusCode.OK)
+                }
+            }
+        }
+    }
 }

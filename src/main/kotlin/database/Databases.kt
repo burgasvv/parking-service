@@ -269,6 +269,13 @@ data class ParkingRequest(
 data class ParkingShortResponse(
     @Serializable(with = UUIDSerializer::class)
     val id: UUID? = null,
+    val price: Double? = null
+)
+
+@Serializable
+data class ParkingWithAddressResponse(
+    @Serializable(with = UUIDSerializer::class)
+    val id: UUID? = null,
     val address: AddressShortResponse? = null,
     val price: Double? = null
 )
@@ -280,4 +287,12 @@ data class ParkingFullResponse(
     val address: AddressShortResponse? = null,
     val price: Double? = null,
     val cars: List<CarShortResponse>? = null
+)
+
+@Serializable
+data class ParkingCarRequest(
+    @Serializable(with = UUIDSerializer::class)
+    val parkingId: UUID,
+    @Serializable(with = UUIDSerializer::class)
+    val carId: UUID
 )

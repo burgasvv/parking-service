@@ -119,3 +119,100 @@ Authorization: Basic zagor@gmail.com zagor
     "model": "911-Turbo",
     "description": "Описание и характеристики автомобиля 911-Turbo"
 }
+
+
+
+### Address Requests
+
+
+
+###
+GET /api/v1/addresses
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+GET /api/v1/addresses/by-id?addressId=50cbc8c9-f8c5-45fe-8e46-c36406a16066
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+POST /api/v1/addresses/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: d2bcd8f7-42f5-4fe7-af06-631f16e71fbf
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+{
+    "city": "Москва",
+    "street": "Мясницкая",
+    "house": "12/1"
+}
+
+###
+PUT /api/v1/addresses/update
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: d2bcd8f7-42f5-4fe7-af06-631f16e71fbf
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+{
+    "id": "34c8fb13-d5c6-4aed-a833-05e7d5aaa77c",
+    "house": "34/2"
+}
+
+
+
+### Parking Requests
+
+
+
+###
+GET /api/v1/parking
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+GET /api/v1/parking/by-id?parkingId=727a39a2-3ce0-4d4c-b489-bc8a9c1a2827
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+POST /api/v1/parking/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: d2bcd8f7-42f5-4fe7-af06-631f16e71fbf
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+{
+    "address": {
+        "id": "34c8fb13-d5c6-4aed-a833-05e7d5aaa77c"
+    },
+    "price": 3500.20
+}
+
+###
+POST /api/v1/parking/add-cars
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: d2bcd8f7-42f5-4fe7-af06-631f16e71fbf
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+[
+    {
+        "parkingId": "17be8c12-3dae-4334-b25c-ca37d1cd70f3",
+        "carId": "1251a88f-3f0c-492f-b57c-c1402bb9f553"
+    }
+]
