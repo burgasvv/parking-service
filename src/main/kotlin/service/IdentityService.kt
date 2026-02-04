@@ -6,8 +6,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.util.AttributeKey
-import io.ktor.util.IdentityEncoder
+import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -17,7 +16,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.mindrot.jbcrypt.BCrypt
 import java.sql.Connection
 import java.util.*
-import kotlin.concurrent.thread
 
 fun IdentityEntity.insert(identityRequest: IdentityRequest) {
     this.authority = identityRequest.authority ?: throw IllegalArgumentException("Identity authority is null")
