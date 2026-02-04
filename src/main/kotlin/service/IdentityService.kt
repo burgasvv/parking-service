@@ -192,7 +192,6 @@ fun Application.configureIdentityRoutes() {
 
         route("/api/v1/identities") {
 
-
             post("/create") {
                 val identityRequest = call.receive(IdentityRequest::class)
                 identityService.create(identityRequest)
