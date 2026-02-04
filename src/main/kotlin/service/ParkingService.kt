@@ -1,19 +1,13 @@
 package org.burgas.service
 
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.Application
-import io.ktor.server.auth.authenticate
-import io.ktor.server.request.receive
-import io.ktor.server.response.respond
-import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
-import io.ktor.server.routing.put
-import io.ktor.server.routing.route
-import io.ktor.server.routing.routing
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.with
 import org.jetbrains.exposed.sql.SizedCollection
@@ -37,7 +31,8 @@ fun ParkingEntity.update(parkingRequest: ParkingRequest) {
     if (addressRequest != null) {
 
         if (addressRequest.id != null) {
-            this.address = AddressEntity.findById(addressRequest.id) ?: throw IllegalArgumentException("Address not found")
+            this.address =
+                AddressEntity.findById(addressRequest.id) ?: throw IllegalArgumentException("Address not found")
         } else {
             this.address = AddressEntity.new { this.insert(addressRequest) }
         }
@@ -84,18 +79,9 @@ class ParkingService {
     }
 
     suspend fun findById(parkingId: UUID): ParkingFullResponse = withContext(Dispatchers.Default) {
-        val redis = DatabaseFactory.redis
-        val parkingString = redis.get("parkingFullResponse::$parkingId")
-        if (parkingString != null) {
-            Json.decodeFromString<ParkingFullResponse>(parkingString)
-        } else {
-            transaction(db = DatabaseFactory.postgres) {
-                val parkingFullResponse =
-                    (ParkingEntity.findById(parkingId) ?: throw IllegalArgumentException("Parking not found"))
-                        .toParkingFullResponse()
-                redis.set("parkingFullResponse::${parkingFullResponse.id}", Json.encodeToString(parkingFullResponse))
-                parkingFullResponse
-            }
+        transaction(db = DatabaseFactory.postgres) {
+            (ParkingEntity.findById(parkingId)
+                ?: throw IllegalArgumentException("Parking not found")).toParkingFullResponse()
         }
     }
 
@@ -103,20 +89,12 @@ class ParkingService {
         val parkingId = parkingRequest.id ?: throw IllegalArgumentException("Parking id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             ParkingEntity.findByIdAndUpdate(parkingId) { it.update(parkingRequest) }
-            val redis = DatabaseFactory.redis
-            if (redis.exists("parkingFullResponse::$parkingId")) {
-                redis.del("parkingFullResponse::$parkingId")
-            }
         }
     }
 
     suspend fun delete(parkingId: UUID) = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             (ParkingEntity.findById(parkingId) ?: throw IllegalArgumentException("Parking not found")).delete()
-            val redis = DatabaseFactory.redis
-            if (redis.exists("parkingFullResponse::$parkingId")) {
-                redis.del("parkingFullResponse::$parkingId")
-            }
         }
     }
 

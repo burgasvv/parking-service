@@ -226,7 +226,7 @@ data class CarFullResponse(
     val model: String? = null,
     val description: String? = null,
     val identity: IdentityShortResponse? = null,
-    val parking: List<ParkingShortResponse>? = null
+    val parking: List<ParkingWithAddressResponse>? = null
 )
 
 @Serializable

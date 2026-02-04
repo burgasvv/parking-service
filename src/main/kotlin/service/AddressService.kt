@@ -1,19 +1,13 @@
 package org.burgas.service
 
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.Application
-import io.ktor.server.auth.authenticate
-import io.ktor.server.request.receive
-import io.ktor.server.response.respond
-import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
-import io.ktor.server.routing.put
-import io.ktor.server.routing.route
-import io.ktor.server.routing.routing
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -66,19 +60,10 @@ class AddressService {
     }
 
     suspend fun findById(addressId: UUID) = withContext(Dispatchers.Default) {
-        val redis = DatabaseFactory.redis
-        val addressString = redis.get("addressFullResponse::$addressId")
-        if (addressString != null) {
-            Json.decodeFromString<AddressFullResponse>(addressString)
-        } else {
-            transaction(db = DatabaseFactory.postgres) {
-                val addressFullResponse =
-                    (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found"))
-                        .load(AddressEntity::parking)
-                        .toAddressFullResponse()
-                redis.set("addressFullResponse::${addressFullResponse.id}", Json.encodeToString(addressFullResponse))
-                addressFullResponse
-            }
+        transaction(db = DatabaseFactory.postgres) {
+            (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found"))
+                .load(AddressEntity::parking)
+                .toAddressFullResponse()
         }
     }
 
@@ -86,20 +71,12 @@ class AddressService {
         val addressId = addressRequest.id ?: throw IllegalArgumentException("Address id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             AddressEntity.findByIdAndUpdate(addressId) { it.update(addressRequest) }
-            val redis = DatabaseFactory.redis
-            if (redis.exists("addressFullResponse::$addressId")) {
-                redis.del("addressFullResponse::$addressId")
-            }
         }
     }
 
     suspend fun delete(addressId: UUID) = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found")).delete()
-            val redis = DatabaseFactory.redis
-            if (redis.exists("addressFullResponse::$addressId")) {
-                redis.del("addressFullResponse::$addressId")
-            }
         }
     }
 }

@@ -9,7 +9,6 @@ import io.ktor.server.routing.*
 import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.leftJoin
@@ -50,7 +49,7 @@ fun CarEntity.toCarFullResponse(): CarFullResponse {
         model = this.model,
         description = this.description,
         identity = this.identity.toIdentityShortResponse(),
-        parking = this.parking.map { it.toParkingShortResponse() }
+        parking = this.parking.map { it.toParkingWithAddressResponse() }
     )
 }
 
@@ -75,18 +74,10 @@ class CarService {
     }
 
     suspend fun findById(carId: UUID) = withContext(Dispatchers.Default) {
-        val redis = DatabaseFactory.redis
-        val carString = redis.get("carFullResponse::$carId")
-        if (carString != null) {
-            Json.decodeFromString<CarFullResponse>(carString)
-        } else {
-            transaction(db = DatabaseFactory.postgres) {
-                val carFullResponse = (CarEntity.findById(carId) ?: throw IllegalArgumentException("Car not found"))
-                    .load(CarEntity::identity, CarEntity::parking)
-                    .toCarFullResponse()
-                redis.set("carFullResponse::${carFullResponse.id}", Json.encodeToString(carFullResponse))
-                carFullResponse
-            }
+        transaction(db = DatabaseFactory.postgres) {
+            (CarEntity.findById(carId) ?: throw IllegalArgumentException("Car not found"))
+                .load(CarEntity::identity, CarEntity::parking)
+                .toCarFullResponse()
         }
     }
 
@@ -94,20 +85,12 @@ class CarService {
         val carId = carRequest.id ?: throw IllegalArgumentException("Car id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             CarEntity.findByIdAndUpdate(carId) { it.update(carRequest) }
-            val redis = DatabaseFactory.redis
-            if (redis.exists("carFullResponse::$carId")) {
-                redis.del("carFullResponse:$carId")
-            }
         }
     }
 
     suspend fun delete(carId: UUID) = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             (CarEntity.findById(carId) ?: throw IllegalArgumentException("Car not found")).delete()
-            val redis = DatabaseFactory.redis
-            if (redis.exists("carFullResponse::$carId")) {
-                redis.del("carFullResponse:$carId")
-            }
         }
     }
 }

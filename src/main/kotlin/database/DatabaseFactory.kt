@@ -1,8 +1,7 @@
 package org.burgas.database
 
-import io.ktor.server.config.ApplicationConfig
+import io.ktor.server.config.*
 import org.jetbrains.exposed.sql.Database
-import redis.clients.jedis.Jedis
 
 class DatabaseFactory {
 
@@ -16,7 +15,5 @@ class DatabaseFactory {
             user = config.property("ktor.postgres.user").getString(),
             password = config.property("ktor.postgres.password").getString()
         )
-
-        val redis = Jedis("localhost", 6379)
     }
 }

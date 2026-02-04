@@ -34,7 +34,6 @@ dependencies {
     implementation("io.ktor:ktor-server-netty")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("io.ktor:ktor-server-config-yaml")
-    implementation("redis.clients:jedis:7.2.1")
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("io.ktor:ktor-server-sessions:3.4.0")
     implementation("io.ktor:ktor-server-csrf:3.4.0")

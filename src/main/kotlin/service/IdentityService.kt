@@ -9,7 +9,6 @@ import io.ktor.server.routing.*
 import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -75,13 +74,7 @@ class IdentityService {
     suspend fun update(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
         val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            IdentityEntity.findByIdAndUpdate(identityId) { identityEntity ->
-                identityEntity.update(identityRequest)
-            }
-            val redis = DatabaseFactory.redis
-            if (redis.exists("identityFullResponse::$identityId")) {
-                redis.del("identityFullResponse::$identityId")
-            }
+            IdentityEntity.findByIdAndUpdate(identityId) { identityEntity -> identityEntity.update(identityRequest) }
         }
     }
 
@@ -93,28 +86,15 @@ class IdentityService {
 
     suspend fun findById(identityId: UUID): IdentityFullResponse = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres) {
-            val redis = DatabaseFactory.redis
-            val identityString = redis.get("identityFullResponse::$identityId")
-            if (identityString != null) {
-                Json.decodeFromString<IdentityFullResponse>(identityString)
-            } else {
-                val identityFullResponse =
-                    (IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found"))
-                        .load(IdentityEntity::cars)
-                        .toIdentityFullResponse()
-                redis.set("identityFullResponse::${identityFullResponse.id}", Json.encodeToString(identityFullResponse))
-                identityFullResponse
-            }
+            (IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found"))
+                .load(IdentityEntity::cars)
+                .toIdentityFullResponse()
         }
     }
 
     suspend fun delete(identityId: UUID) = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             (IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found")).delete()
-            val redis = DatabaseFactory.redis
-            if (redis.exists("identityFullResponse::$identityId")) {
-                redis.del("identityFullResponse::$identityId")
-            }
         }
     }
 
@@ -134,10 +114,6 @@ class IdentityService {
             identityEntity.apply {
                 this.password = BCrypt.hashpw(identityRequest.password, BCrypt.gensalt())
             }
-            val redis = DatabaseFactory.redis
-            if (redis.exists("identityFullResponse::${identityRequest.id}")) {
-                redis.del("identityFullResponse::${identityRequest.id}")
-            }
         }
     }
 
@@ -156,10 +132,6 @@ class IdentityService {
             }
             identityEntity.apply {
                 this.enabled = identityRequest.enabled
-            }
-            val redis = DatabaseFactory.redis
-            if (redis.exists("identityFullResponse::${identityRequest.id}")) {
-                redis.del("identityFullResponse::${identityRequest.id}")
             }
         }
     }
@@ -182,7 +154,8 @@ fun Application.configureIdentityRoutes() {
                 val identityId = UUID.fromString(call.parameters["identityId"])
 
                 val identityEntity = transaction(db = DatabaseFactory.postgres) {
-                    IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found for proceed")
+                    IdentityEntity.findById(identityId)
+                        ?: throw IllegalArgumentException("Identity not found for proceed")
                 }
 
                 if (identityEntity.email == principal.name) {
@@ -199,10 +172,12 @@ fun Application.configureIdentityRoutes() {
                     call.principal<UserPasswordCredential>() ?: throw IllegalArgumentException("Not authenticated")
 
                 val identityRequest = call.receive(IdentityRequest::class)
-                val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null, not proceeded")
+                val identityId =
+                    identityRequest.id ?: throw IllegalArgumentException("Identity id is null, not proceeded")
 
                 val identityEntity = transaction(db = DatabaseFactory.postgres) {
-                    IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found for proceed")
+                    IdentityEntity.findById(identityId)
+                        ?: throw IllegalArgumentException("Identity not found for proceed")
                 }
 
                 if (identityEntity.email == principal.name) {
