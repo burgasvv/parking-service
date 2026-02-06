@@ -1,5 +1,7 @@
 package org.burgas.service
 
+import io.github.flaxoos.ktor.server.plugins.kafka.components.toRecord
+import io.github.flaxoos.ktor.server.plugins.kafka.kafkaProducer
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -9,6 +11,7 @@ import io.ktor.server.routing.*
 import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -68,14 +71,18 @@ class IdentityService {
     suspend fun create(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             IdentityEntity.new { this.insert(identityRequest) }
+                .load(IdentityEntity::cars)
+                .toIdentityFullResponse()
         }
     }
 
     suspend fun update(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
         val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            IdentityEntity.findByIdAndUpdate(identityId) { identityEntity -> identityEntity.update(identityRequest) }
+            (IdentityEntity.findByIdAndUpdate(identityId) { identityEntity -> identityEntity.update(identityRequest) })
+                ?: throw IllegalArgumentException("Identity not found")
         }
+        return@withContext
     }
 
     suspend fun findAll(): List<IdentityShortResponse> = withContext(Dispatchers.Default) {
@@ -115,6 +122,7 @@ class IdentityService {
                 this.password = BCrypt.hashpw(identityRequest.password, BCrypt.gensalt())
             }
         }
+        return@withContext
     }
 
     suspend fun changeStatus(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
@@ -134,6 +142,7 @@ class IdentityService {
                 this.enabled = identityRequest.enabled
             }
         }
+        return@withContext
     }
 }
 
@@ -194,7 +203,11 @@ fun Application.configureIdentityRoutes() {
 
             post("/create") {
                 val identityRequest = call.receive(IdentityRequest::class)
-                identityService.create(identityRequest)
+                val identityFullResponse = identityService.create(identityRequest)
+                val producerRecord = ProducerRecord(
+                    "identity-topic", "Create Identity",identityFullResponse.toRecord()
+                )
+                kafkaProducer?.send(producerRecord)?.get()
                 call.respond(HttpStatusCode.Created)
             }
 

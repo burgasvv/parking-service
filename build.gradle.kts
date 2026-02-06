@@ -1,4 +1,6 @@
 
+@file:Suppress("VulnerableLibrariesLocal")
+
 val exposedVersion: String = "0.59.0"
 val kotlinVersion: String = "2.3.0"
 val logbackVersion: String = "1.5.27"
@@ -40,6 +42,19 @@ dependencies {
     implementation("io.ktor:ktor-server-cors:3.4.0")
     implementation("io.ktor:ktor-server-auth:3.4.0")
     implementation("io.ktor:ktor-server-auth:3.4.0")
+    implementation("io.ktor:ktor-client-auth:3.4.0")
+    implementation("io.github.flaxoos:ktor-server-kafka:2.2.1")
+    implementation("io.ktor:ktor-client-core:3.4.0")
+    implementation("io.ktor:ktor-client-cio:3.4.0")
+    implementation("io.ktor:ktor-server-cio:3.4.0")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://packages.confluent.io/maven")
+        name = "confluence"
+    }
 }

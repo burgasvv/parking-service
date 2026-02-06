@@ -88,7 +88,8 @@ class ParkingService {
     suspend fun update(parkingRequest: ParkingRequest) = withContext(Dispatchers.Default) {
         val parkingId = parkingRequest.id ?: throw IllegalArgumentException("Parking id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            ParkingEntity.findByIdAndUpdate(parkingId) { it.update(parkingRequest) }
+            (ParkingEntity.findByIdAndUpdate(parkingId) { it.update(parkingRequest) })
+                ?: throw IllegalArgumentException("Parking not found")
         }
     }
 

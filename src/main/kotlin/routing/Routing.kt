@@ -23,16 +23,16 @@ data class CsrfToken(val token: String)
 
 fun Application.configureRouting() {
 
-    install(StatusPages) {
-        exception<Exception> { call, cause ->
-            val exceptionResponse = ExceptionResponse(
-                status = HttpStatusCode.BadRequest.description,
-                code = HttpStatusCode.BadRequest.value,
-                message = cause.localizedMessage
-            )
-            call.respond(exceptionResponse)
-        }
-    }
+//    install(StatusPages) {
+//        exception<Exception> { call, cause ->
+//            val exceptionResponse = ExceptionResponse(
+//                status = HttpStatusCode.BadRequest.description,
+//                code = HttpStatusCode.BadRequest.value,
+//                message = cause.localizedMessage
+//            )
+//            call.respond(exceptionResponse)
+//        }
+//    }
 
     install(Sessions) {
         cookie<CsrfToken>("CSRF_TOKEN")

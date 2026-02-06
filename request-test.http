@@ -22,10 +22,10 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 449af106-f14b-4523-b804-e844795a3aa6
+X-Csrf-Token: 60c15b3c-00e1-4ff8-b9c5-336520ad5c71
 
 {
-    "authority": "ADMIN",
+    "authority": "USER",
     "username": "zagor",
     "password": "zagor",
     "email": "zagor@gmail.com",

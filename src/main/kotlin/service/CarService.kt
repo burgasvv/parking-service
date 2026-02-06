@@ -84,7 +84,7 @@ class CarService {
     suspend fun update(carRequest: CarRequest) = withContext(Dispatchers.Default) {
         val carId = carRequest.id ?: throw IllegalArgumentException("Car id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            CarEntity.findByIdAndUpdate(carId) { it.update(carRequest) }
+            (CarEntity.findByIdAndUpdate(carId) { it.update(carRequest) }) ?: throw IllegalArgumentException("Car not found")
         }
     }
 
