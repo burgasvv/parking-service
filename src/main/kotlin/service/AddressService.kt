@@ -7,10 +7,9 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.sql.Connection
 import java.util.*
 
@@ -47,40 +46,41 @@ fun AddressEntity.toAddressFullResponse(): AddressFullResponse {
 
 class AddressService {
 
-    suspend fun create(addressRequest: AddressRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            AddressEntity.new { this.insert(addressRequest) }
-        }
-        return@withContext
+    suspend fun create(addressRequest: AddressRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        AddressEntity.new { this.insert(addressRequest) }
     }
 
-    suspend fun findAll(): List<AddressShortResponse> = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            AddressEntity.all().map { it.toAddressShortResponse() }
-        }
+    suspend fun findAll(): List<AddressShortResponse> = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        AddressEntity.all().map { it.toAddressShortResponse() }
     }
 
-    suspend fun findById(addressId: UUID) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found"))
-                .load(AddressEntity::parking)
-                .toAddressFullResponse()
-        }
+    suspend fun findById(addressId: UUID) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found"))
+            .load(AddressEntity::parking)
+            .toAddressFullResponse()
     }
 
-    suspend fun update(addressRequest: AddressRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            val addressId = addressRequest.id ?: throw IllegalArgumentException("Address id is null")
-            (AddressEntity.findByIdAndUpdate(addressId) { it.update(addressRequest) })
-                ?: throw IllegalArgumentException("Address not found")
-        }
-        return@withContext
+    suspend fun update(addressRequest: AddressRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val addressId = addressRequest.id ?: throw IllegalArgumentException("Address id is null")
+        (AddressEntity.findByIdAndUpdate(addressId) { it.update(addressRequest) })
+            ?: throw IllegalArgumentException("Address not found")
     }
 
-    suspend fun delete(addressId: UUID) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found")).delete()
-        }
+    suspend fun delete(addressId: UUID) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        (AddressEntity.findById(addressId) ?: throw IllegalArgumentException("identity not found")).delete()
     }
 }
 

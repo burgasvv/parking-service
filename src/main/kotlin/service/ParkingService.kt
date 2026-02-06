@@ -9,13 +9,13 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.dao.with
 import org.jetbrains.exposed.sql.SizedCollection
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.vendors.ForUpdateOption
 import java.sql.Connection
 import java.util.*
@@ -70,78 +70,128 @@ fun ParkingEntity.toParkingFullResponse(): ParkingFullResponse {
 
 class ParkingService {
 
-    suspend fun create(parkingRequest: ParkingRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            ParkingEntity.new { this.insert(parkingRequest) }
-                .load(ParkingEntity::address, ParkingEntity::cars)
-                .toParkingFullResponse()
+    private val redis = DatabaseFactory.redis
+    private val parkingKey = "parkingFullResponse::%s"
+    private val carKey = "carFullResponse::%s"
+
+    suspend fun create(parkingRequest: ParkingRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        ParkingEntity.new { this.insert(parkingRequest) }
+            .load(ParkingEntity::address, ParkingEntity::cars)
+            .toParkingFullResponse()
+    }
+
+    suspend fun findAll(): List<ParkingWithAddressResponse> = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        ParkingEntity.all().with(ParkingEntity::address).map { it.toParkingWithAddressResponse() }
+    }
+
+    suspend fun findById(parkingId: UUID): ParkingFullResponse = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        val parkingKey = parkingKey.format(parkingId)
+        val parkingString = redis.get(parkingKey)
+
+        if (parkingString != null) {
+            Json.decodeFromString<ParkingFullResponse>(parkingString)
+
+        } else {
+            val parkingFullResponse =
+                (ParkingEntity.findById(parkingId) ?: throw IllegalArgumentException("Parking not found"))
+                    .load(ParkingEntity::address, ParkingEntity::cars)
+                    .toParkingFullResponse()
+            redis.set(parkingKey, Json.encodeToString(parkingFullResponse))
+            parkingFullResponse
         }
     }
 
-    suspend fun findAll(): List<ParkingWithAddressResponse> = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            ParkingEntity.all().with(ParkingEntity::address).map { it.toParkingWithAddressResponse() }
-        }
+    suspend fun update(parkingRequest: ParkingRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val parkingId = parkingRequest.id ?: throw IllegalArgumentException("Parking id is null")
+        val parkingEntity = ((ParkingEntity.findByIdAndUpdate(parkingId) { it.update(parkingRequest) })
+            ?: throw IllegalArgumentException("Parking not found"))
+
+        handleCacheWithCars(parkingEntity)
     }
 
-    suspend fun findById(parkingId: UUID): ParkingFullResponse = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            (ParkingEntity.findById(parkingId) ?: throw IllegalArgumentException("Parking not found"))
-                .toParkingFullResponse()
-        }
+    suspend fun delete(parkingId: UUID) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val parkingEntity = (ParkingEntity.findById(parkingId) ?: throw IllegalArgumentException("Parking not found"))
+
+        handleCacheWithCars(parkingEntity)
+        parkingEntity.delete()
     }
 
-    suspend fun update(parkingRequest: ParkingRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            val parkingId = parkingRequest.id ?: throw IllegalArgumentException("Parking id is null")
-            (ParkingEntity.findByIdAndUpdate(parkingId) { it.update(parkingRequest) })
-                ?: throw IllegalArgumentException("Parking not found")
-        }
-        return@withContext
-    }
+    private fun handleCacheWithCars(parkingEntity: ParkingEntity) {
+        val parkingKey = parkingKey.format(parkingEntity.id)
+        if (redis.exists(parkingKey)) redis.del(parkingKey)
 
-    suspend fun delete(parkingId: UUID) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            (ParkingEntity.findById(parkingId) ?: throw IllegalArgumentException("Parking not found")).delete()
-        }
-    }
+        if (!parkingEntity.cars.empty()) {
 
-    suspend fun addCars(parkingCarRequests: List<ParkingCarRequest>) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            parkingCarRequests.forEach { parkingCarRequest ->
-
-                val parkingEntity = ParkingEntity.find { ParkingTable.id eq parkingCarRequest.parkingId }
-                    .forUpdate(ForUpdateOption.ForUpdate)
-                    .singleOrNull() ?: throw IllegalArgumentException("Parking not found")
-
-                val carEntity = CarEntity.find { CarTable.id eq parkingCarRequest.carId }
-                    .forUpdate(ForUpdateOption.ForUpdate)
-                    .singleOrNull() ?: throw IllegalArgumentException("Car not found")
-
-                if (!parkingEntity.cars.contains(carEntity)) {
-                    parkingEntity.cars = SizedCollection(parkingEntity.cars + carEntity)
-                }
+            parkingEntity.cars.forEach { carEntity ->
+                val carKey = carKey.format(carEntity.id)
+                if (redis.exists(carKey)) redis.del(carKey)
             }
         }
     }
 
-    suspend fun removeCars(parkingCarRequests: List<ParkingCarRequest>) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            parkingCarRequests.forEach { parkingCarRequest ->
+    suspend fun addCars(parkingCarRequests: List<ParkingCarRequest>) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        parkingCarRequests.forEach { parkingCarRequest ->
 
-                val parkingEntity = ParkingEntity.find { ParkingTable.id eq parkingCarRequest.parkingId }
-                    .forUpdate(ForUpdateOption.ForUpdate)
-                    .singleOrNull() ?: throw IllegalArgumentException("Parking not found")
+            val parkingEntity = ParkingEntity.find { ParkingTable.id eq parkingCarRequest.parkingId }
+                .forUpdate(ForUpdateOption.ForUpdate)
+                .singleOrNull() ?: throw IllegalArgumentException("Parking not found")
 
-                val carEntity = CarEntity.find { CarTable.id eq parkingCarRequest.carId }
-                    .forUpdate(ForUpdateOption.ForUpdate)
-                    .singleOrNull() ?: throw IllegalArgumentException("Car not found")
+            val carEntity = CarEntity.find { CarTable.id eq parkingCarRequest.carId }
+                .forUpdate(ForUpdateOption.ForUpdate)
+                .singleOrNull() ?: throw IllegalArgumentException("Car not found")
 
-                if (parkingEntity.cars.contains(carEntity)) {
-                    parkingEntity.cars = SizedCollection(parkingEntity.cars - carEntity)
-                }
+            handleCache(parkingEntity, carEntity)
+
+            if (!parkingEntity.cars.contains(carEntity)) {
+                parkingEntity.cars = SizedCollection(parkingEntity.cars + carEntity)
             }
         }
+    }
+
+    suspend fun removeCars(parkingCarRequests: List<ParkingCarRequest>) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        parkingCarRequests.forEach { parkingCarRequest ->
+
+            val parkingEntity = ParkingEntity.find { ParkingTable.id eq parkingCarRequest.parkingId }
+                .forUpdate(ForUpdateOption.ForUpdate)
+                .singleOrNull() ?: throw IllegalArgumentException("Parking not found")
+
+            val carEntity = CarEntity.find { CarTable.id eq parkingCarRequest.carId }
+                .forUpdate(ForUpdateOption.ForUpdate)
+                .singleOrNull() ?: throw IllegalArgumentException("Car not found")
+
+            handleCache(parkingEntity, carEntity)
+
+            if (parkingEntity.cars.contains(carEntity)) {
+                parkingEntity.cars = SizedCollection(parkingEntity.cars - carEntity)
+            }
+        }
+    }
+
+    private fun handleCache(parkingEntity: ParkingEntity, carEntity: CarEntity) {
+        val parkingKey = parkingKey.format(parkingEntity.id)
+        if (redis.exists(parkingKey)) redis.del(parkingKey)
+
+        val carKey = carKey.format(carEntity.id)
+        if (redis.exists(carKey)) redis.del(carKey)
     }
 }
 

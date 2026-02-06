@@ -95,14 +95,14 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 8e117a3f-fc9f-4501-9b56-ced9901533ed
-Authorization: Basic zagor@gmail.com zagor
+X-Csrf-Token: a889a7bd-0c0d-4c9c-a1d4-7180e9757495
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 {
     "brand": "Porsche",
     "model": "911",
     "description": "Описание и характеристики автомобиля Porsche 911",
-    "identityId": "7725aed9-2f7a-4276-a55f-8f6db8b192a1"
+    "identityId": "c009193f-54bc-4360-924c-893c2856f201"
 }
 
 ###

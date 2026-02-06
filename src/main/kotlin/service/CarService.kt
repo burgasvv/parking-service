@@ -10,12 +10,13 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.Connection
 import java.util.*
@@ -58,45 +59,86 @@ fun CarEntity.toCarFullResponse(): CarFullResponse {
 
 class CarService {
 
-    suspend fun create(carRequest: CarRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            CarEntity.new { this.insert(carRequest) }
+    private val redis = DatabaseFactory.redis
+    private val carKey = "carFullResponse::%s"
+    private val identityKey = "identityFullResponse::%s"
+    private val parkingKey = "parkingFullResponse::%s"
+
+    suspend fun create(carRequest: CarRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val carEntity = CarEntity.new { this.insert(carRequest) }
+
+        val identityKey = identityKey.format(carEntity.identity.id)
+
+        if (redis.exists(identityKey)) redis.del(identityKey)
+        carEntity.load(CarEntity::identity, CarEntity::parking).toCarFullResponse()
+    }
+
+    suspend fun findAll() = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        CarEntity.all().map { it.toCarShortResponse() }
+    }
+
+    suspend fun findByIdentityId(identityId: UUID) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        CarEntity.find { CarTable.identityId eq identityId }.map { it.toCarShortResponse() }
+    }
+
+    suspend fun findById(carId: UUID) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        val carKey = carKey.format(carId)
+        val carString = redis.get(carKey)
+
+        if (carString != null) {
+            Json.decodeFromString<CarFullResponse>(carString)
+
+        } else {
+            val carFullResponse = (CarEntity.findById(carId) ?: throw IllegalArgumentException("Car not found"))
                 .load(CarEntity::identity, CarEntity::parking)
                 .toCarFullResponse()
+            redis.set(carKey, Json.encodeToString(carFullResponse))
+            carFullResponse
         }
     }
 
-    suspend fun findAll() = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            CarEntity.all().map { it.toCarShortResponse() }
-        }
+    suspend fun update(carRequest: CarRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val carId = carRequest.id ?: throw IllegalArgumentException("Car id is null")
+        val carEntity = (CarEntity.findByIdAndUpdate(carId) { it.update(carRequest) })
+            ?: throw IllegalArgumentException("Car not found")
+
+        handleCache(carEntity)
     }
 
-    suspend fun findByIdentityId(identityId: UUID) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            CarEntity.find { CarTable.identityId eq identityId }.map { it.toCarShortResponse() }
-        }
+    suspend fun delete(carId: UUID) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val carEntity = (CarEntity.findById(carId) ?: throw IllegalArgumentException("Car not found"))
+        handleCache(carEntity)
+        carEntity.delete()
     }
 
-    suspend fun findById(carId: UUID) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            (CarEntity.findById(carId) ?: throw IllegalArgumentException("Car not found"))
-                .load(CarEntity::identity, CarEntity::parking)
-                .toCarFullResponse()
-        }
-    }
+    private fun handleCache(carEntity: CarEntity) {
+        val carKey = carKey.format(carEntity.id)
+        if (redis.exists(carKey)) redis.del(carKey)
 
-    suspend fun update(carRequest: CarRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            val carId = carRequest.id ?: throw IllegalArgumentException("Car id is null")
-            (CarEntity.findByIdAndUpdate(carId) { it.update(carRequest) }) ?: throw IllegalArgumentException("Car not found")
-        }
-        return@withContext
-    }
+        val identityKey = identityKey.format(carEntity.identity.id)
+        if (redis.exists(identityKey)) redis.del(identityKey)
 
-    suspend fun delete(carId: UUID) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            (CarEntity.findById(carId) ?: throw IllegalArgumentException("Car not found")).delete()
+        if (!carEntity.parking.empty()) {
+
+            carEntity.parking.forEach { parkingEntity ->
+                val parkingKey = parkingKey.format(parkingEntity.id)
+                if (redis.exists(parkingKey)) redis.del(parkingKey)
+            }
         }
     }
 }

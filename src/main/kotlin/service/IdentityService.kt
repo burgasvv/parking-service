@@ -10,10 +10,11 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.mindrot.jbcrypt.BCrypt
 import java.sql.Connection
@@ -68,70 +69,140 @@ fun IdentityEntity.toIdentityFullResponse(): IdentityFullResponse {
 
 class IdentityService {
 
-    suspend fun create(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            IdentityEntity.new { this.insert(identityRequest) }
-                .load(IdentityEntity::cars)
-                .toIdentityFullResponse()
+    private val redis = DatabaseFactory.redis
+    private val identityKey = "identityFullResponse::%s"
+    private val carKey = "carFullResponse::%s"
+
+    suspend fun create(identityRequest: IdentityRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED,
+    ) {
+        IdentityEntity.new { this.insert(identityRequest) }
+            .load(IdentityEntity::cars)
+            .toIdentityFullResponse()
+    }
+
+    suspend fun findAll(): List<IdentityShortResponse> = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        IdentityEntity.all().map { identityEntity -> identityEntity.toIdentityShortResponse() }
+    }
+
+    suspend fun findById(identityId: UUID): IdentityFullResponse = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default, readOnly = true
+    ) {
+        val identityKey = identityKey.format(identityId)
+        val identityString = redis.get(identityKey)
+
+        if (identityString != null) {
+            Json.decodeFromString<IdentityFullResponse>(identityString)
+
+        } else {
+            val identityFullResponse =
+                (IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found"))
+                    .load(IdentityEntity::cars)
+                    .toIdentityFullResponse()
+            redis.set(identityKey, Json.encodeToString(identityFullResponse))
+            identityFullResponse
         }
     }
 
-    suspend fun update(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null")
-            (IdentityEntity.findByIdAndUpdate(identityId) { identityEntity -> identityEntity.update(identityRequest) })
-                ?: throw IllegalArgumentException("Identity not found")
+    suspend fun update(identityRequest: IdentityRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null")
+        val identityEntity = ((IdentityEntity.findByIdAndUpdate(identityId) { it.update(identityRequest) })
+            ?: throw IllegalArgumentException("Identity not found"))
+
+        val identityKey = identityKey.format(identityId)
+        if (redis.exists(identityKey)) redis.del(identityKey)
+
+        if (!identityEntity.cars.empty()) {
+
+            identityEntity.cars.forEach { carEntity ->
+                val carKey = carKey.format(carEntity.id)
+                if (redis.exists(carKey)) redis.del(carKey)
+            }
         }
-        return@withContext
     }
 
-    suspend fun findAll(): List<IdentityShortResponse> = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
-            IdentityEntity.all().map { identityEntity -> identityEntity.toIdentityShortResponse() }
-        }
-    }
-
-    suspend fun findById(identityId: UUID): IdentityFullResponse = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres) {
+    suspend fun delete(identityId: UUID) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        val identityEntity =
             (IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found"))
-                .load(IdentityEntity::cars)
-                .toIdentityFullResponse()
-        }
-    }
+        val identityKey = identityKey.format(identityEntity.id)
 
-    suspend fun delete(identityId: UUID) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            (IdentityEntity.findById(identityId) ?: throw IllegalArgumentException("Identity not found")).delete()
-        }
-    }
+        if (redis.exists(identityKey)) redis.del(identityKey)
 
-    suspend fun changePassword(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            if (identityRequest.id == null) throw IllegalArgumentException("Identity id is null")
-            if (identityRequest.password == null) throw IllegalArgumentException("Identity password is null")
-            val identityEntity =
-                IdentityEntity.findById(identityRequest.id) ?: throw IllegalArgumentException("Identity not found")
-            if (BCrypt.checkpw(identityRequest.password, identityEntity.password))
-                throw IllegalArgumentException("Passwords matched")
-            identityEntity.apply {
-                this.password = BCrypt.hashpw(identityRequest.password, BCrypt.gensalt())
+        if (!identityEntity.cars.empty()) {
+
+            identityEntity.cars.forEach { carEntity ->
+                val carKey = carKey.format(carEntity.id)
+                if (redis.exists(carKey)) redis.del(carKey)
             }
         }
-        return@withContext
+        identityEntity.delete()
     }
 
-    suspend fun changeStatus(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
-        transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-            if (identityRequest.id == null) throw IllegalArgumentException("Identity id is null")
-            if (identityRequest.enabled == null) throw IllegalArgumentException("Identity status is null")
-            val identityEntity =
-                IdentityEntity.findById(identityRequest.id) ?: throw IllegalArgumentException("Identity not found")
-            if (identityEntity.enabled == identityRequest.enabled) throw IllegalArgumentException("identity statuses matched")
-            identityEntity.apply {
-                this.enabled = identityRequest.enabled
+    suspend fun changePassword(identityRequest: IdentityRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        if (identityRequest.id == null) throw IllegalArgumentException("Identity id is null")
+        if (identityRequest.password == null) throw IllegalArgumentException("Identity password is null")
+
+        val identityEntity =
+            IdentityEntity.findById(identityRequest.id) ?: throw IllegalArgumentException("Identity not found")
+
+        if (BCrypt.checkpw(identityRequest.password, identityEntity.password))
+            throw IllegalArgumentException("Passwords matched")
+
+        identityEntity.apply {
+            this.password = BCrypt.hashpw(identityRequest.password, BCrypt.gensalt())
+        }
+
+        val identityKey = identityKey.format(identityEntity.id)
+        if (redis.exists(identityKey)) redis.del(identityKey)
+
+        if (!identityEntity.cars.empty()) {
+
+            identityEntity.cars.forEach { carEntity ->
+                val carKey = carKey.format(carEntity.id)
+                if (redis.exists(carKey)) redis.del(carKey)
             }
         }
-        return@withContext
+    }
+
+    suspend fun changeStatus(identityRequest: IdentityRequest) = newSuspendedTransaction(
+        db = DatabaseFactory.postgres, context = Dispatchers.Default,
+        transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+    ) {
+        if (identityRequest.id == null) throw IllegalArgumentException("Identity id is null")
+        if (identityRequest.enabled == null) throw IllegalArgumentException("Identity status is null")
+
+        val identityEntity = IdentityEntity.findById(identityRequest.id)
+            ?: throw IllegalArgumentException("Identity not found")
+
+        if (identityEntity.enabled == identityRequest.enabled)
+            throw IllegalArgumentException("identity statuses matched")
+
+        identityEntity.apply {
+            this.enabled = identityRequest.enabled
+        }
+
+        val identityKey = identityKey.format(identityEntity.id)
+        if (redis.exists(identityKey)) redis.del(identityKey)
+
+        if (!identityEntity.cars.empty()) {
+
+            identityEntity.cars.forEach { carEntity ->
+                val carKey = carKey.format(carEntity.id)
+                if (redis.exists(carKey)) redis.del(carKey)
+            }
+        }
     }
 }
 
