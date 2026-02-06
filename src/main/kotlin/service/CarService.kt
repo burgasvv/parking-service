@@ -87,10 +87,11 @@ class CarService {
     }
 
     suspend fun update(carRequest: CarRequest) = withContext(Dispatchers.Default) {
-        val carId = carRequest.id ?: throw IllegalArgumentException("Car id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val carId = carRequest.id ?: throw IllegalArgumentException("Car id is null")
             (CarEntity.findByIdAndUpdate(carId) { it.update(carRequest) }) ?: throw IllegalArgumentException("Car not found")
         }
+        return@withContext
     }
 
     suspend fun delete(carId: UUID) = withContext(Dispatchers.Default) {

@@ -51,6 +51,7 @@ class AddressService {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             AddressEntity.new { this.insert(addressRequest) }
         }
+        return@withContext
     }
 
     suspend fun findAll(): List<AddressShortResponse> = withContext(Dispatchers.Default) {
@@ -68,11 +69,12 @@ class AddressService {
     }
 
     suspend fun update(addressRequest: AddressRequest) = withContext(Dispatchers.Default) {
-        val addressId = addressRequest.id ?: throw IllegalArgumentException("Address id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val addressId = addressRequest.id ?: throw IllegalArgumentException("Address id is null")
             (AddressEntity.findByIdAndUpdate(addressId) { it.update(addressRequest) })
                 ?: throw IllegalArgumentException("Address not found")
         }
+        return@withContext
     }
 
     suspend fun delete(addressId: UUID) = withContext(Dispatchers.Default) {

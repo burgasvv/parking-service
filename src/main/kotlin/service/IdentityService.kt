@@ -77,8 +77,8 @@ class IdentityService {
     }
 
     suspend fun update(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
-        val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val identityId = identityRequest.id ?: throw IllegalArgumentException("Identity id is null")
             (IdentityEntity.findByIdAndUpdate(identityId) { identityEntity -> identityEntity.update(identityRequest) })
                 ?: throw IllegalArgumentException("Identity not found")
         }
@@ -106,18 +106,13 @@ class IdentityService {
     }
 
     suspend fun changePassword(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
-        if (identityRequest.id == null) {
-            throw IllegalArgumentException("Identity id is null")
-        }
-        if (identityRequest.password == null) {
-            throw IllegalArgumentException("Identity password is null")
-        }
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            if (identityRequest.id == null) throw IllegalArgumentException("Identity id is null")
+            if (identityRequest.password == null) throw IllegalArgumentException("Identity password is null")
             val identityEntity =
                 IdentityEntity.findById(identityRequest.id) ?: throw IllegalArgumentException("Identity not found")
-            if (BCrypt.checkpw(identityRequest.password, identityEntity.password)) {
+            if (BCrypt.checkpw(identityRequest.password, identityEntity.password))
                 throw IllegalArgumentException("Passwords matched")
-            }
             identityEntity.apply {
                 this.password = BCrypt.hashpw(identityRequest.password, BCrypt.gensalt())
             }
@@ -126,18 +121,12 @@ class IdentityService {
     }
 
     suspend fun changeStatus(identityRequest: IdentityRequest) = withContext(Dispatchers.Default) {
-        if (identityRequest.id == null) {
-            throw IllegalArgumentException("Identity id is null")
-        }
-        if (identityRequest.enabled == null) {
-            throw IllegalArgumentException("Identity status is null")
-        }
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            if (identityRequest.id == null) throw IllegalArgumentException("Identity id is null")
+            if (identityRequest.enabled == null) throw IllegalArgumentException("Identity status is null")
             val identityEntity =
                 IdentityEntity.findById(identityRequest.id) ?: throw IllegalArgumentException("Identity not found")
-            if (identityEntity.enabled == identityRequest.enabled) {
-                throw IllegalArgumentException("identity statuses matched")
-            }
+            if (identityEntity.enabled == identityRequest.enabled) throw IllegalArgumentException("identity statuses matched")
             identityEntity.apply {
                 this.enabled = identityRequest.enabled
             }
@@ -205,7 +194,7 @@ fun Application.configureIdentityRoutes() {
                 val identityRequest = call.receive(IdentityRequest::class)
                 val identityFullResponse = identityService.create(identityRequest)
                 val producerRecord = ProducerRecord(
-                    "identity-topic", "Create Identity",identityFullResponse.toRecord()
+                    "identity-topic", "Create Identity", identityFullResponse.toRecord()
                 )
                 kafkaProducer?.send(producerRecord)?.get()
                 call.respond(HttpStatusCode.Created)

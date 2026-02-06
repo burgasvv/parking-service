@@ -86,17 +86,18 @@ class ParkingService {
 
     suspend fun findById(parkingId: UUID): ParkingFullResponse = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres) {
-            (ParkingEntity.findById(parkingId)
-                ?: throw IllegalArgumentException("Parking not found")).toParkingFullResponse()
+            (ParkingEntity.findById(parkingId) ?: throw IllegalArgumentException("Parking not found"))
+                .toParkingFullResponse()
         }
     }
 
     suspend fun update(parkingRequest: ParkingRequest) = withContext(Dispatchers.Default) {
-        val parkingId = parkingRequest.id ?: throw IllegalArgumentException("Parking id is null")
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val parkingId = parkingRequest.id ?: throw IllegalArgumentException("Parking id is null")
             (ParkingEntity.findByIdAndUpdate(parkingId) { it.update(parkingRequest) })
                 ?: throw IllegalArgumentException("Parking not found")
         }
+        return@withContext
     }
 
     suspend fun delete(parkingId: UUID) = withContext(Dispatchers.Default) {

@@ -47,6 +47,7 @@ dependencies {
     implementation("io.ktor:ktor-client-core:3.4.0")
     implementation("io.ktor:ktor-client-cio:3.4.0")
     implementation("io.ktor:ktor-server-cio:3.4.0")
+    implementation("redis.clients:jedis:7.2.1")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }
