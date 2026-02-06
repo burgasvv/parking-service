@@ -1,5 +1,7 @@
 package org.burgas.service
 
+import io.github.flaxoos.ktor.server.plugins.kafka.components.toRecord
+import io.github.flaxoos.ktor.server.plugins.kafka.kafkaProducer
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -8,7 +10,9 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.burgas.database.*
+import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.dao.with
 import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -69,6 +73,8 @@ class ParkingService {
     suspend fun create(parkingRequest: ParkingRequest) = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             ParkingEntity.new { this.insert(parkingRequest) }
+                .load(ParkingEntity::address, ParkingEntity::cars)
+                .toParkingFullResponse()
         }
     }
 
@@ -162,7 +168,11 @@ fun Application.configureParkingRoutes() {
 
                 post("/create") {
                     val parkingRequest = call.receive(ParkingRequest::class)
-                    parkingService.create(parkingRequest)
+                    val parkingFullResponse = parkingService.create(parkingRequest)
+                    val producerRecord = ProducerRecord(
+                        "parking-topic", "Create Parking", parkingFullResponse.toRecord()
+                    )
+                    kafkaProducer?.send(producerRecord)?.get()
                     call.respond(HttpStatusCode.Created)
                 }
 

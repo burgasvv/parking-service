@@ -1,5 +1,7 @@
 package org.burgas.service
 
+import io.github.flaxoos.ktor.server.plugins.kafka.components.toRecord
+import io.github.flaxoos.ktor.server.plugins.kafka.kafkaProducer
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -9,6 +11,7 @@ import io.ktor.server.routing.*
 import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.burgas.database.*
 import org.jetbrains.exposed.dao.load
 import org.jetbrains.exposed.sql.leftJoin
@@ -58,6 +61,8 @@ class CarService {
     suspend fun create(carRequest: CarRequest) = withContext(Dispatchers.Default) {
         transaction(db = DatabaseFactory.postgres, transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             CarEntity.new { this.insert(carRequest) }
+                .load(CarEntity::identity, CarEntity::parking)
+                .toCarFullResponse()
         }
     }
 
@@ -212,7 +217,11 @@ fun Application.configureCarRoutes() {
 
                 post("/create") {
                     val carRequest = call.attributes[AttributeKey<CarRequest>("carRequest")]
-                    carService.create(carRequest)
+                    val carFullResponse = carService.create(carRequest)
+                    val producerRecord = ProducerRecord(
+                        "car-topic", "Create Car", carFullResponse.toRecord()
+                    )
+                    kafkaProducer?.send(producerRecord)?.get()
                     call.respond(HttpStatusCode.Created)
                 }
 
