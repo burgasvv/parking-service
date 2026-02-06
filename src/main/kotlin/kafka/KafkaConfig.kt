@@ -24,7 +24,7 @@ fun Application.configureKafka() {
             }
         }
 
-        common { // <-- Define common properties
+        common {
             bootstrapServers = listOf("localhost:9092")
             retries = 1
             clientId = "my-client-id"
