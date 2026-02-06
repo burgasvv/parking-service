@@ -4,7 +4,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.csrf.*
-import io.ktor.server.plugins.statuspages.*
+import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
@@ -23,16 +23,16 @@ data class CsrfToken(val token: String)
 
 fun Application.configureRouting() {
 
-//    install(StatusPages) {
-//        exception<Exception> { call, cause ->
-//            val exceptionResponse = ExceptionResponse(
-//                status = HttpStatusCode.BadRequest.description,
-//                code = HttpStatusCode.BadRequest.value,
-//                message = cause.localizedMessage
-//            )
-//            call.respond(exceptionResponse)
-//        }
-//    }
+    install(StatusPages) {
+        exception<Exception> { call, cause ->
+            val exceptionResponse = ExceptionResponse(
+                status = HttpStatusCode.BadRequest.description,
+                code = HttpStatusCode.BadRequest.value,
+                message = cause.localizedMessage
+            )
+            call.respond(exceptionResponse)
+        }
+    }
 
     install(Sessions) {
         cookie<CsrfToken>("CSRF_TOKEN")
