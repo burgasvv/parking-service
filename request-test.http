@@ -120,6 +120,14 @@ Authorization: Basic zagor@gmail.com zagor
     "description": "Описание и характеристики автомобиля 911-Turbo"
 }
 
+###
+DELETE /api/v1/cars/delete?carId=70c8a2ac-00d7-4c43-9573-fd01084b631c
+Host: localhost:9000
+Accept: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: efcddd56-87b5-493b-a7d0-8454b4b01aa6
+Authorization: Basic burgasvv@gmail.com burgasvv
+
 
 
 ### Address Requests
