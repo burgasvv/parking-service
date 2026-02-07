@@ -9,11 +9,16 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
 import java.util.*
 
 fun Application.configureSerialization() {
     install(ContentNegotiation) {
-        json()
+        json(
+            Json {
+                this.ignoreUnknownKeys = true
+            }
+        )
     }
 }
 
