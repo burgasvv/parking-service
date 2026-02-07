@@ -10,3 +10,9 @@ ktor:
     url: jdbc:postgresql://localhost:6000/parking_service_db
     user: postgres
     password: postgres
+  kafka:
+    bootstrap:
+      servers: kafka:9092
+    schema:
+      registry:
+        url: schema-registry

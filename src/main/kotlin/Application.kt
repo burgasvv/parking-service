@@ -2,6 +2,7 @@ package org.burgas
 
 import io.ktor.server.application.*
 import org.burgas.database.configureDatabases
+import org.burgas.documentation.configureSwagger
 import org.burgas.kafka.configureKafka
 import org.burgas.routing.configureRouting
 import org.burgas.security.configureAuthentication
@@ -21,6 +22,7 @@ fun Application.module() {
     configureRouting()
     configureAuthentication()
     configureKafka()
+    configureSwagger()
 
     configureIdentityRoutes()
     configureCarRoutes()

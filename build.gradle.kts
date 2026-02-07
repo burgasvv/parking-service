@@ -23,6 +23,11 @@ kotlin {
     jvmToolchain(24)
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_24
+    targetCompatibility = JavaVersion.VERSION_24
+}
+
 dependencies {
     implementation("io.ktor:ktor-server-core")
     implementation("io.ktor:ktor-server-host-common")
@@ -49,6 +54,8 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:3.4.0")
     implementation("io.ktor:ktor-server-cio:3.4.0")
     implementation("redis.clients:jedis:7.2.1")
+    implementation("io.ktor:ktor-server-swagger:3.4.0")
+    implementation("io.ktor:ktor-server-routing-openapi:3.4.0")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }

@@ -1,0 +1,671 @@
+openapi: "3.1.0"
+info:
+  title: "parking_service API"
+  description: "parking_service API"
+  version: "1.0.0"
+servers:
+  - url: "http://localhost:9000"
+paths:
+  /api/v1/security/csrf-token:
+    get:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CsrfToken"
+  /api/v1/identities:
+    get:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/IdentityShortResponse"
+  /api/v1/identities/by-id:
+    get:
+      description: ""
+      parameters:
+        - name: "identityId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema: { }
+  /api/v1/identities/change-password:
+    put:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/identities/change-status:
+    put:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/identities/create:
+    post:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/identities/delete:
+    delete:
+      description: ""
+      parameters:
+        - name: "identityId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/identities/update:
+    put:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/cars:
+    get:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarShortResponse"
+  /api/v1/cars/by-id:
+    get:
+      description: ""
+      parameters:
+        - name: "carId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema: { }
+  /api/v1/cars/by-identity:
+    get:
+      description: ""
+      parameters:
+        - name: "identityId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CarShortResponse"
+  /api/v1/cars/create:
+    post:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/cars/delete:
+    delete:
+      description: ""
+      parameters:
+        - name: "carId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/cars/update:
+    put:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/parking:
+    get:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/ParkingWithAddressResponse"
+  /api/v1/parking/add-cars:
+    post:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/ParkingCarRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/parking/by-id:
+    get:
+      description: ""
+      parameters:
+        - name: "parkingId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema: { }
+  /api/v1/parking/create:
+    post:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParkingRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/parking/delete:
+    delete:
+      description: ""
+      parameters:
+        - name: "parkingId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/parking/remove-cars:
+    delete:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/ParkingCarRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/parking/update:
+    put:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParkingRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/addresses:
+    get:
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/AddressShortResponse"
+  /api/v1/addresses/by-id:
+    get:
+      description: ""
+      parameters:
+        - name: "addressId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema: { }
+  /api/v1/addresses/create:
+    post:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExceptionResponse"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/addresses/delete:
+    delete:
+      description: ""
+      parameters:
+        - name: "addressId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/addresses/update:
+    put:
+      description: ""
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressRequest"
+        required: true
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+components:
+  schemas:
+    ExceptionResponse:
+      type: "object"
+      properties:
+        status:
+          type: "string"
+        code:
+          type: "integer"
+          format: "int32"
+        message:
+          type: "string"
+      required:
+        - "status"
+        - "code"
+        - "message"
+    CsrfToken:
+      type: "object"
+      properties:
+        token:
+          type: "string"
+      required:
+        - "token"
+    IdentityShortResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        username:
+          type: "string"
+          nullable: true
+        email:
+          type: "string"
+          nullable: true
+        firstname:
+          type: "string"
+          nullable: true
+        lastname:
+          type: "string"
+          nullable: true
+        patronymic:
+          type: "string"
+          nullable: true
+    CarShortResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        brand:
+          type: "string"
+          nullable: true
+        model:
+          type: "string"
+          nullable: true
+        description:
+          type: "string"
+          nullable: true
+    IdentityFullResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        username:
+          type: "string"
+          nullable: true
+        email:
+          type: "string"
+          nullable: true
+        firstname:
+          type: "string"
+          nullable: true
+        lastname:
+          type: "string"
+          nullable: true
+        patronymic:
+          type: "string"
+          nullable: true
+        cars:
+          type: "array"
+          nullable: true
+          items:
+            $ref: "#/components/schemas/CarShortResponse"
+    IdentityRequest:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        authority:
+          type: "string"
+          nullable: true
+          enum:
+            - "ADMIN"
+            - "USER"
+        username:
+          type: "string"
+          nullable: true
+        password:
+          type: "string"
+          nullable: true
+        email:
+          type: "string"
+          nullable: true
+        enabled:
+          type: "boolean"
+          nullable: true
+        firstname:
+          type: "string"
+          nullable: true
+        lastname:
+          type: "string"
+          nullable: true
+        patronymic:
+          type: "string"
+          nullable: true
+    AddressShortResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        city:
+          type: "string"
+          nullable: true
+        street:
+          type: "string"
+          nullable: true
+        house:
+          type: "string"
+          nullable: true
+    ParkingWithAddressResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        address:
+          nullable: true
+          $ref: "#/components/schemas/AddressShortResponse"
+        price:
+          type: "number"
+          format: "double"
+          nullable: true
+    CarFullResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        brand:
+          type: "string"
+          nullable: true
+        model:
+          type: "string"
+          nullable: true
+        description:
+          type: "string"
+          nullable: true
+        identity:
+          nullable: true
+          $ref: "#/components/schemas/IdentityShortResponse"
+        parking:
+          type: "array"
+          nullable: true
+          items:
+            $ref: "#/components/schemas/ParkingWithAddressResponse"
+    ParkingCarRequest:
+      type: "object"
+      properties:
+        parkingId:
+          type: "string"
+          format: "uuid"
+        carId:
+          type: "string"
+          format: "uuid"
+      required:
+        - "parkingId"
+        - "carId"
+    ParkingFullResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        address:
+          nullable: true
+          $ref: "#/components/schemas/AddressShortResponse"
+        price:
+          type: "number"
+          format: "double"
+          nullable: true
+        cars:
+          type: "array"
+          nullable: true
+          items:
+            $ref: "#/components/schemas/CarShortResponse"
+    AddressRequest:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        city:
+          type: "string"
+          nullable: true
+        street:
+          type: "string"
+          nullable: true
+        house:
+          type: "string"
+          nullable: true
+    ParkingRequest:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        address:
+          nullable: true
+          $ref: "#/components/schemas/AddressRequest"
+        price:
+          type: "number"
+          format: "double"
+          nullable: true
+    ParkingShortResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        price:
+          type: "number"
+          format: "double"
+          nullable: true
+    AddressFullResponse:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          format: "uuid"
+          nullable: true
+        city:
+          type: "string"
+          nullable: true
+        street:
+          type: "string"
+          nullable: true
+        house:
+          type: "string"
+          nullable: true
+        parking:
+          nullable: true
+          $ref: "#/components/schemas/ParkingShortResponse"
