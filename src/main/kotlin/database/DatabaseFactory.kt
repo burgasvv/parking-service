@@ -17,6 +17,6 @@ class DatabaseFactory {
             password = config.property("ktor.postgres.password").getString()
         )
 
-        val redis = Jedis("localhost", 6379)
+        val redis = Jedis(config.property("ktor.redis.host").getString(), 6379)
     }
 }

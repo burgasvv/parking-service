@@ -22,7 +22,7 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 60c15b3c-00e1-4ff8-b9c5-336520ad5c71
+X-Csrf-Token: ea1ae69b-de35-4640-b435-b717e001f41a
 
 {
     "authority": "USER",

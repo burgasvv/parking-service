@@ -7,12 +7,14 @@ ktor:
     port: 9000
   postgres:
     driver: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:6000/parking_service_db
+    url: jdbc:postgresql://postgres:5432/parking_service_db
     user: postgres
     password: postgres
+  redis:
+    host: redis
   kafka:
     bootstrap:
       servers: kafka:9092
     schema:
       registry:
-        url: schema-registry
+        url: http://schema-registry:8081

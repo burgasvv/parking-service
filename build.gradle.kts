@@ -28,6 +28,13 @@ java {
     targetCompatibility = JavaVersion.VERSION_24
 }
 
+ktor {
+    openApi {
+        enabled = true
+        codeInferenceEnabled = true
+    }
+}
+
 dependencies {
     implementation("io.ktor:ktor-server-core")
     implementation("io.ktor:ktor-server-host-common")

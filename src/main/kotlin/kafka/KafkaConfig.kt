@@ -5,6 +5,7 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer
 import io.github.flaxoos.ktor.server.plugins.kafka.*
 import io.github.flaxoos.ktor.server.plugins.kafka.components.fromRecord
 import io.ktor.server.application.*
+import io.ktor.server.config.ApplicationConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.burgas.database.CarFullResponse
@@ -13,9 +14,11 @@ import org.burgas.database.ParkingFullResponse
 
 fun Application.configureKafka() {
 
+    val config = ApplicationConfig("application.yaml")
+
     install(Kafka) {
 
-        schemaRegistryUrl = "http://localhost:8081"
+        schemaRegistryUrl = config.property("ktor.kafka.schema.registry.url").getString()
 
         val identityTopic = TopicName.named("identity-topic")
         topic(identityTopic) {
@@ -45,22 +48,16 @@ fun Application.configureKafka() {
         }
 
         common {
-            bootstrapServers = listOf("localhost:9092")
-            retries = 1
-            clientId = "my-client-id"
+            bootstrapServers = config.property("ktor.kafka.bootstrap.servers").getString()
         }
 
-        admin { }
-
         producer {
-            clientId = "my-client-id"
             keySerializerClass = StringSerializer::class.java
             valueSerializerClass = KafkaAvroSerializer::class.java
         }
 
         consumer {
             groupId = "my-group-id"
-            clientId = "my-client-id-override"
             keyDeserializerClass = StringDeserializer::class.java
             valueDeserializerClass = KafkaAvroDeserializer::class.java
         }
