@@ -47,20 +47,16 @@ fun Application.configureRouting() {
     install(CORS) {
         anyHost()
 
-        // Разрешить необходимые HTTP-методы
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
         allowMethod(HttpMethod.Patch)
 
-        // РАЗРЕШИТЬ заголовки, которые Swagger UI отправляет по умолчанию
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.Origin)
+        allowHeader("X-CSRF-Token")
 
-        // Если вы используете специфические заголовки для API
-        // allowHeader("X-Custom-Header")
-
-        // Важно для Swagger UI: поддержка Content-Type для JSON-запросов
         allowNonSimpleContentTypes = true
     }
 

@@ -45,6 +45,18 @@ paths:
               schema: { }
   /api/v1/identities/change-password:
     put:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       responses:
         "200":
@@ -55,6 +67,18 @@ paths:
                 type: "object"
   /api/v1/identities/change-status:
     put:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
@@ -71,6 +95,18 @@ paths:
                 type: "object"
   /api/v1/identities/create:
     post:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
@@ -100,6 +136,17 @@ paths:
           required: false
           schema:
             type: "string"
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: "OK"
@@ -109,6 +156,18 @@ paths:
                 type: "object"
   /api/v1/identities/update:
     put:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       responses:
         "200":
@@ -164,6 +223,18 @@ paths:
                   $ref: "#/components/schemas/CarShortResponse"
   /api/v1/cars/create:
     post:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       responses:
         "200":
@@ -182,6 +253,17 @@ paths:
     delete:
       description: ""
       parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
         - name: "carId"
           in: "query"
           required: false
@@ -196,6 +278,18 @@ paths:
                 type: "object"
   /api/v1/cars/update:
     put:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       responses:
         "200":
@@ -218,6 +312,18 @@ paths:
                   $ref: "#/components/schemas/ParkingWithAddressResponse"
   /api/v1/parking/add-cars:
     post:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
@@ -251,6 +357,18 @@ paths:
               schema: { }
   /api/v1/parking/create:
     post:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
@@ -275,6 +393,17 @@ paths:
     delete:
       description: ""
       parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
         - name: "parkingId"
           in: "query"
           required: false
@@ -289,6 +418,18 @@ paths:
                 type: "object"
   /api/v1/parking/remove-cars:
     delete:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
@@ -307,6 +448,18 @@ paths:
                 type: "object"
   /api/v1/parking/update:
     put:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
@@ -350,6 +503,18 @@ paths:
               schema: { }
   /api/v1/addresses/create:
     post:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
@@ -374,6 +539,17 @@ paths:
     delete:
       description: ""
       parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
         - name: "addressId"
           in: "query"
           required: false
@@ -388,6 +564,18 @@ paths:
                 type: "object"
   /api/v1/addresses/update:
     put:
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+            example: http://localhost:9000
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       description: ""
       requestBody:
         content:
