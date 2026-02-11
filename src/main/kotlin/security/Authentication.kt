@@ -7,6 +7,7 @@ import org.burgas.database.DatabaseFactory
 import org.burgas.database.IdentityEntity
 import org.burgas.database.IdentityTable
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.mindrot.jbcrypt.BCrypt
 
 fun Application.configureAuthentication() {
 
@@ -19,7 +20,7 @@ fun Application.configureAuthentication() {
                 }
                 if (
                     identityEntity != null && identityEntity.enabled &&
-                    identityEntity.email == credentials.name
+                    BCrypt.checkpw(credentials.password, identityEntity.password)
                 ) {
                     UserPasswordCredential(credentials.name, credentials.password)
 
@@ -36,7 +37,7 @@ fun Application.configureAuthentication() {
                 }
                 if (
                     identityEntity != null && identityEntity.enabled &&
-                    identityEntity.email == credentials.name &&
+                    BCrypt.checkpw(credentials.password, identityEntity.password) &&
                     identityEntity.authority == Authority.ADMIN
                 ) {
                     UserPasswordCredential(credentials.name, credentials.password)
